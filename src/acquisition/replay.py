@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import numpy as np
+import open3d as o3d
 
 from src.app_types import PointCloud, Intrinsics
 
@@ -22,7 +23,12 @@ class ReplaySource:
         if not self._paths:
             raise FileNotFoundError(f"No .npz files found in {self.data_dir!s} with pattern {self.pattern!r}")
         self._index = 0
-        self._intrinsics_cfg = self._load_intrinsics(self.config_path)
+        self._intrinsics_cfg = None
+        self._intrinsics_error = None
+        try:
+            self._intrinsics_cfg = self._load_intrinsics(self.config_path)
+        except Exception as exc:
+            self._intrinsics_error = exc
 
     def read(self) -> PointCloud:
         if self._index >= len(self._paths):
@@ -36,28 +42,41 @@ class ReplaySource:
 
     def _load_npz(self, path: Path) -> PointCloud:
         with np.load(path) as data:
-            depth_data = data["depth_data"]
-            if depth_data.ndim != 2:
-                raise ValueError(f"depth_data must be 2D, got shape {depth_data.shape} in {path!s}")
-            if depth_data.dtype != np.uint16:
-                depth_data = depth_data.astype(np.uint16, copy=False)
+            if "points" not in data:
+                raise KeyError(f"Missing 'points' in {path!s}. Expected point cloud .npz format.")
 
-            height, width = depth_data.shape
-            if "width" in data and int(data["width"]) != width:
-                raise ValueError(f"width mismatch in {path!s}: {int(data['width'])} != {width}")
-            if "height" in data and int(data["height"]) != height:
-                raise ValueError(f"height mismatch in {path!s}: {int(data['height'])} != {height}")
+            points = data["points"]
+            if points.ndim != 2 or points.shape[1] != 3:
+                raise ValueError(f"points must be Nx3, got shape {points.shape} in {path!s}")
+            if points.dtype != np.float32:
+                points = points.astype(np.float32, copy=False)
+
+            width = int(data["width"]) if "width" in data else None
+            height = int(data["height"]) if "height" in data else None
+            if width is None and "intr_width" in data:
+                width = int(data["intr_width"])
+            if height is None and "intr_height" in data:
+                height = int(data["intr_height"])
+            if width is None or height is None:
+                raise KeyError(f"Missing width/height metadata in {path!s}")
 
             depth_scale = float(data["depth_scale"]) if "depth_scale" in data else 1.0
-            intrinsics = self._intrinsics_from_config(width, height)
+            intrinsics = self._intrinsics_from_file_or_config(data, width, height)
             timestamp_ns = int(data["timestamp_ns"]) if "timestamp_ns" in data else None
 
+        pcd = self._convert_to_o3d_point_cloud(points)
         return PointCloud(
-            depth=depth_data,
+            pcd=pcd,
             intrinsics=intrinsics,
             depth_scale=depth_scale,
             timestamp_ns=timestamp_ns,
         )
+
+    @staticmethod
+    def _convert_to_o3d_point_cloud(points: np.ndarray) -> o3d.geometry.PointCloud:
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        return pcd
 
     @staticmethod
     def _load_intrinsics(config_path: Path) -> dict[str, float]:
@@ -81,6 +100,31 @@ class ReplaySource:
         if missing:
             raise KeyError(f"Missing intrinsics keys in {config_path!s}: {', '.join(missing)}")
         return {k: float(intr[k]) for k in ("fx", "fy", "cx", "cy", "width", "height") if k in intr}
+
+    def _intrinsics_from_file_or_config(
+        self,
+        data: np.lib.npyio.NpzFile,
+        width: int,
+        height: int,
+    ) -> Intrinsics:
+        if all(k in data for k in ("fx", "fy", "cx", "cy")):
+            intr_w = int(data["intr_width"]) if "intr_width" in data else width
+            intr_h = int(data["intr_height"]) if "intr_height" in data else height
+            return Intrinsics(
+                fx=float(data["fx"]),
+                fy=float(data["fy"]),
+                cx=float(data["cx"]),
+                cy=float(data["cy"]),
+                width=intr_w,
+                height=intr_h,
+            )
+
+        if self._intrinsics_cfg is None:
+            if self._intrinsics_error is not None:
+                raise self._intrinsics_error
+            raise KeyError("Missing intrinsics in file and config intrinsics not available")
+
+        return self._intrinsics_from_config(width, height)
 
     def _intrinsics_from_config(self, width: int, height: int) -> Intrinsics:
         cfg = self._intrinsics_cfg
