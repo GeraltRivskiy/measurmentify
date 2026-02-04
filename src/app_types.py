@@ -16,8 +16,8 @@ class Intrinsics:
     height: int
 
 @dataclass(frozen=True, slots=True)
-class FrameDepth:
-    depth: NDArray[np.uint16]
+class FramePointCloud:
+    cloud: NDArray[np.uint16]
     intrinsics: Intrinsics
     depth_scale: float
     timestamp_ns: Optional[int] = None

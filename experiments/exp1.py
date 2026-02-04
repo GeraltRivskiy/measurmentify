@@ -1,9 +1,7 @@
-from src.app_types import FramePointCloud, Intrinsics
 import numpy as np
 from pyorbbecsdk import Config, PointCloudFilter, OBFormat, Frame
 from pyorbbecsdk import OBSensorType
 from pyorbbecsdk import Pipeline
-
 
 class OrbbecSource:
     def __init__(self):
@@ -21,9 +19,7 @@ class OrbbecSource:
             print(e)
             return
         self.pipeline.start(self.config)
-        camera_param = self.pipeline.get_camera_param()
         self.point_cloud_filter = PointCloudFilter()
-        self.point_cloud_filter.set_camera_param(camera_param)
         self.point_cloud_filter.set_create_point_format(OBFormat.POINT)
 
     def read(self):
@@ -31,15 +27,8 @@ class OrbbecSource:
         if frames is None:
             raise Exception("Frame was not obtained")
         point_cloud_frame = self.point_cloud_filter.process(frames)
-        
-        intrinsics = Intrinsics(self.depth_intrinsics.fx,
-                                self.depth_intrinsics.fy,
-                                self.depth_intrinsics.cx,
-                                self.depth_intrinsics.cy,
-                                self.depth_intrinsics.width,
-                                self.depth_intrinsics.height)
-        
-        return FramePointCloud(cloud=point_cloud_frame,
-                          intrinsics=intrinsics, depth_scale=1.0)
+        print(point_cloud_frame)
         
     
+source = OrbbecSource()
+frame = source.read()
