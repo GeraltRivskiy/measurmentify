@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import numpy as np
 
-from src.app_types import FramePointCloud, Intrinsics
+from src.app_types import PointCloud, Intrinsics
 
 
 class ReplaySource:
@@ -24,7 +24,7 @@ class ReplaySource:
         self._index = 0
         self._intrinsics_cfg = self._load_intrinsics(self.config_path)
 
-    def read(self) -> FramePointCloud:
+    def read(self) -> PointCloud:
         if self._index >= len(self._paths):
             if self.loop:
                 self._index = 0
@@ -34,7 +34,7 @@ class ReplaySource:
         self._index += 1
         return self._load_npz(path)
 
-    def _load_npz(self, path: Path) -> FramePointCloud:
+    def _load_npz(self, path: Path) -> PointCloud:
         with np.load(path) as data:
             depth_data = data["depth_data"]
             if depth_data.ndim != 2:
@@ -52,7 +52,7 @@ class ReplaySource:
             intrinsics = self._intrinsics_from_config(width, height)
             timestamp_ns = int(data["timestamp_ns"]) if "timestamp_ns" in data else None
 
-        return FramePointCloud(
+        return PointCloud(
             depth=depth_data,
             intrinsics=intrinsics,
             depth_scale=depth_scale,

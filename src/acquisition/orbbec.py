@@ -1,9 +1,19 @@
-from src.app_types import FramePointCloud, Intrinsics
+from src.app_types import PointCloud, Intrinsics
 import numpy as np
 from pyorbbecsdk import Config, PointCloudFilter, OBFormat, Frame
 from pyorbbecsdk import OBSensorType
 from pyorbbecsdk import Pipeline
+import open3d as o3d
 
+def convert_to_o3d_point_cloud(points, colors=None):
+    """
+    Converts numpy arrays of points and colors (if provided) into an Open3D point cloud object.
+    """
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    if colors is not None:
+        pcd.colors = o3d.utility.Vector3dVector(colors / 255.0)  # Assuming colors are in [0, 255]
+    return pcd
 
 class OrbbecSource:
     def __init__(self):
@@ -21,16 +31,19 @@ class OrbbecSource:
             print(e)
             return
         self.pipeline.start(self.config)
-        camera_param = self.pipeline.get_camera_param()
-        self.point_cloud_filter = PointCloudFilter()
-        self.point_cloud_filter.set_camera_param(camera_param)
-        self.point_cloud_filter.set_create_point_format(OBFormat.POINT)
+        self.camera_param = self.pipeline.get_camera_param()
+        # self.point_cloud_filter = PointCloudFilter()
+        # self.point_cloud_filter.set_camera_param(camera_param)
+        # self.point_cloud_filter.set_create_point_format(OBFormat.POINT)
 
     def read(self):
         frames = self.pipeline.wait_for_frames(500)
         if frames is None:
             raise Exception("Frame was not obtained")
-        point_cloud_frame = self.point_cloud_filter.process(frames)
+        
+        points = frames.get_point_cloud(self.camera_param)
+        pcd = convert_to_o3d_point_cloud(np.array(points))
+        
         
         intrinsics = Intrinsics(self.depth_intrinsics.fx,
                                 self.depth_intrinsics.fy,
@@ -39,7 +52,7 @@ class OrbbecSource:
                                 self.depth_intrinsics.width,
                                 self.depth_intrinsics.height)
         
-        return FramePointCloud(cloud=point_cloud_frame,
+        return PointCloud(pcd=pcd,
                           intrinsics=intrinsics, depth_scale=1.0)
         
     
