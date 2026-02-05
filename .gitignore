@@ -1,4 +1,3 @@
-/third-party
 *.pyc
 *.log.txt
 *.npz

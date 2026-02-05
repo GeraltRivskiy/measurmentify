@@ -1,0 +1,6 @@
+[submodule "third-party/pyorbbecsdk"]
+	path = third-party/pyorbbecsdk
+	url = https://github.com/orbbec/pyorbbecsdk.git
+[submodule "third-party/OrbbecSDK"]
+	path = third-party/OrbbecSDK
+	url = https://github.com/orbbec/OrbbecSDK.git
