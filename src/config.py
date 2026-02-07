@@ -17,10 +17,10 @@ class DimsAlgoConfig:
     h_max: float = 500                 # максимум 1 м (защита от мусора)
     
     # ROI в координатах стола, если известны габариты рабочего поля
-    roi_x_min: float = 200
-    roi_x_max: float =  -100
-    roi_y_min: float = 150
-    roi_y_max: float = -200
+    roi_x_min: float = -2000
+    roi_x_max: float =  1000
+    roi_y_min: float = -1500
+    roi_y_max: float = 2000
 
     # --- clustering ---
     use_dbscan: bool = True

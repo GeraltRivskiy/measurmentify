@@ -2,15 +2,18 @@ from src.app_types import PointCloud, DimsResult
 from src.config import DimsAlgoConfig
 import open3d as o3d
 import numpy as np
-
+from src.ui.app_state import ViewLayer
 
 
 class Pipeline:
     def __init__(self, config: DimsAlgoConfig):
         self.cfg = config
 
-    def _downsample(self, o3d_points: o3d.utility.Vector3dVector) -> o3d.geometry.PointCloud:
-        pcd = o3d.geometry.PointCloud(o3d_points)
+    def _downsample(self, o3d_points) -> o3d.geometry.PointCloud:
+        if isinstance(o3d_points, o3d.geometry.PointCloud):
+            pcd = o3d_points
+        else:
+            pcd = o3d.geometry.PointCloud(o3d_points)
         if self.cfg.voxel_size > 0:
             pcd = pcd.voxel_down_sample(self.cfg.voxel_size)
         pcd, _ = pcd.remove_statistical_outlier(
@@ -138,7 +141,7 @@ class Pipeline:
         return length, width, height
 
 
-    def process(self, frame: PointCloud):
+    def process(self, frame: PointCloud) -> tuple[DimsResult, dict[ViewLayer, np.ndarray]]:
 
         o3d_points = frame.points
         pcd = self._downsample(o3d_points=o3d_points)
@@ -154,5 +157,21 @@ class Pipeline:
         obj_pts_sd = self._transform_cam_to_table(obj_pts_sd, R, p0)
 
         obj_pts_extracted = self._object_extraction(obj_pts_sd)
+        obj_pts_extracted_cam = (R @ obj_pts_extracted.T).T + p0
 
-        return self._compute_upright_dims(obj_pts_extracted)
+        l, w, h = self._compute_upright_dims(obj_pts_extracted)
+
+        if isinstance(o3d_points, o3d.geometry.PointCloud):
+            raw_points = np.asarray(o3d_points.points)
+        else:
+            raw_points = np.asarray(o3d_points)
+
+        res = DimsResult(length=l, width=w, height=h)
+        clouds = {
+            ViewLayer.RAW: raw_points,
+            ViewLayer.DOWNSAMPLED: np.asarray(pcd.points),
+            ViewLayer.TABLE: np.asarray(table_pcd.points),
+            ViewLayer.OBJECT: np.asarray(obj_pts_extracted_cam),
+            ViewLayer.FILTERED: np.asarray(object_pcd_sd.points),
+        }
+        return res, clouds

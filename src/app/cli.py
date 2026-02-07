@@ -16,13 +16,13 @@ def main():
     else:
         from src.acquisition.orbbec import OrbbecSource
         src = OrbbecSource()
-    pipe = Pipeline(DimsAlgoConfig)
+    pipe = Pipeline(DimsAlgoConfig())
 
     while True:
         frame = src.read()
-        res = pipe.process(frame)
+        res, _ = pipe.process(frame)
 
-        print(f'Length: {res[0]}, Width: {res[1]}, Height: {res[2]}')
+        print(f'Length: {res.length}, Width: {res.width}, Height: {res.height}')
 
 if __name__ == "__main__":
     main()
