@@ -17,7 +17,7 @@ class Intrinsics:
 
 @dataclass(frozen=True, slots=True)
 class PointCloud:
-    pcd: o3d.utility.Vector3dVector
+    points: o3d.utility.Vector3dVector
     intrinsics: Intrinsics
     depth_scale: float
     timestamp_ns: Optional[int] = None

@@ -64,9 +64,9 @@ class ReplaySource:
             intrinsics = self._intrinsics_from_file_or_config(data, width, height)
             timestamp_ns = int(data["timestamp_ns"]) if "timestamp_ns" in data else None
 
-        pcd = self._convert_to_o3d_point_cloud(points)
+        points_o3d = self._convert_to_o3d_point_cloud(points)
         return PointCloud(
-            pcd=pcd,
+            points=points_o3d,
             intrinsics=intrinsics,
             depth_scale=depth_scale,
             timestamp_ns=timestamp_ns,

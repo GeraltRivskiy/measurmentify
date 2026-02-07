@@ -42,7 +42,7 @@ class OrbbecSource:
             raise Exception("Frame was not obtained")
         
         points = frames.get_point_cloud(self.camera_param)
-        pcd = convert_to_o3d_point_cloud(np.array(points))
+        points_o3d = convert_to_o3d_point_cloud(np.array(points))
         
         
         intrinsics = Intrinsics(self.depth_intrinsics.fx,
@@ -52,7 +52,7 @@ class OrbbecSource:
                                 self.depth_intrinsics.width,
                                 self.depth_intrinsics.height)
         
-        return PointCloud(pcd=pcd,
+        return PointCloud(points=points_o3d,
                           intrinsics=intrinsics, depth_scale=1.0)
         
     
