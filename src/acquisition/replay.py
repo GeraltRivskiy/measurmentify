@@ -19,9 +19,19 @@ class ReplaySource:
         self.pattern = pattern
         self.loop = loop
         self.config_path = Path(config_path)
-        self._paths = sorted(self.data_dir.glob(self.pattern))
-        if not self._paths:
-            raise FileNotFoundError(f"No .npz files found in {self.data_dir!s} with pattern {self.pattern!r}")
+        self._paths: list[Path] = []
+        self._single_frame: PointCloud | None = None
+        self._single_frame_used = False
+        if self.data_dir.is_file():
+            if not self.data_dir.exists():
+                raise FileNotFoundError(f"File not found: {self.data_dir!s}")
+            self._paths = [self.data_dir]
+        else:
+            self._paths = sorted(self.data_dir.glob(self.pattern))
+            if not self._paths:
+                raise FileNotFoundError(
+                    f"No .npz files found in {self.data_dir!s} with pattern {self.pattern!r}"
+                )
         self._index = 0
         self._intrinsics_cfg = None
         self._intrinsics_error = None
@@ -29,8 +39,15 @@ class ReplaySource:
             self._intrinsics_cfg = self._load_intrinsics(self.config_path)
         except Exception as exc:
             self._intrinsics_error = exc
+        if self.data_dir.is_file():
+            self._single_frame = self._load_npz(self.data_dir)
 
     def read(self) -> PointCloud:
+        if self._single_frame is not None:
+            if self._single_frame_used and not self.loop:
+                raise StopIteration("No more depth frames to replay")
+            self._single_frame_used = True
+            return self._single_frame
         if self._index >= len(self._paths):
             if self.loop:
                 self._index = 0
