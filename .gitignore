@@ -1,3 +1,2 @@
-/third-party
-.pyc
-.log.txt
+*.pyc
+*.log.txt
