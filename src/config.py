@@ -3,12 +3,12 @@ from dataclasses import dataclass
 @dataclass
 class DimsAlgoConfig:
     # --- point cloud preprocessing ---
-    voxel_size: float = 3          # 5 мм
+    voxel_size: float = 1          # 5 мм
     nb_neighbors: int = 50
-    std_ratio: float = 1.25
+    std_ratio: float = 2.0
 
     # --- plane (table) ---
-    plane_dist_thresh: float = 5.0   # 4 мм: допуск точек к плоскости
+    plane_dist_thresh: float = 7.0   # 4 мм: допуск точек к плоскости
     ransac_n: int = 3
     ransac_iters: int = 1000
 
@@ -24,7 +24,7 @@ class DimsAlgoConfig:
 
     # --- clustering ---
     use_dbscan: bool = True
-    dbscan_eps: float = 10           # 1 см
+    dbscan_eps: float = 15           # 1 см
     dbscan_min_points: int = 30
 
     # --- robust extents ---

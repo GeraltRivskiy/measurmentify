@@ -1,7 +1,7 @@
 from src.app_types import PointCloud, Intrinsics
 import numpy as np
 from pyorbbecsdk import Config, PointCloudFilter, OBFormat, Frame
-from pyorbbecsdk import OBSensorType
+from pyorbbecsdk import OBSensorType, OBPropertyID
 from pyorbbecsdk import Pipeline
 import open3d as o3d
 
@@ -19,6 +19,8 @@ class OrbbecSource:
     def __init__(self):
         self.config = Config()
         self.pipeline = Pipeline()
+        device = self.pipeline.get_device()
+        device.set_bool_property(OBPropertyID.OB_PROP_DEPTH_SOFT_FILTER_BOOL, False)
         try:
             profile_list = self.pipeline.get_stream_profile_list(OBSensorType.DEPTH_SENSOR)
             assert profile_list is not None
@@ -37,7 +39,7 @@ class OrbbecSource:
         # self.point_cloud_filter.set_create_point_format(OBFormat.POINT)
 
     def read(self):
-        frames = self.pipeline.wait_for_frames(500)
+        frames = self.pipeline.wait_for_frames(10000)
         if frames is None:
             raise Exception("Frame was not obtained")
         

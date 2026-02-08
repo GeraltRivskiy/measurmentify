@@ -32,7 +32,7 @@ def main():
 
     pipeline.start(config)
     camera_param = pipeline.get_camera_param()
-    frames = pipeline.wait_for_frames(500)
+    frames = pipeline.wait_for_frames(10000)
     if frames is None:
         print("Frame was not obtained")
         pipeline.stop()

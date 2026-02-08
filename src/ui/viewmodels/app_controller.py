@@ -36,7 +36,10 @@ class AppController(QObject):
         self._cfg_lock = threading.Lock()
         self._latest_clouds: dict[ViewLayer, object] | None = None
         self._latest_dims = None
-        self._measure_requested = False
+        self._measure_active = False
+        self._measure_target = 5
+        self._measure_count = 0
+        self._measure_sum = [0.0, 0.0, 0.0]
         self._fps_last = time.monotonic()
         self._fps_count = 0
         self._fps_value = 0.0
@@ -52,7 +55,7 @@ class AppController(QObject):
         if self.state.mode == mode:
             return
         self.state.mode = mode
-        self._measure_requested = False
+        self._measure_active = False
         self.mode_changed.emit(mode)
         self.status_changed.emit(f"Mode set to: {mode.value}")
 
@@ -116,12 +119,35 @@ class AppController(QObject):
         if self.state.mode != AppMode.USE:
             self.status_changed.emit("Measurement is available in USE mode.")
             return
-        if self._latest_dims is not None:
-            self._emit_result(self._latest_dims)
-            self.status_changed.emit("Measurement captured.")
+        self._measure_active = True
+        self._measure_count = 0
+        self._measure_sum = [0.0, 0.0, 0.0]
+        self.status_changed.emit(
+            f"Measurement started. Collecting {self._measure_target} frames."
+        )
+
+    def set_measure_target(self, count: int) -> None:
+        try:
+            value = int(count)
+        except (TypeError, ValueError):
+            self.status_changed.emit("Invalid measurement count.")
             return
-        self._measure_requested = True
-        self.status_changed.emit("Measurement armed. Waiting for next frame.")
+        if value < 1:
+            value = 1
+        if value == self._measure_target:
+            return
+        self._measure_target = value
+        if self._measure_active:
+            self._measure_count = 0
+            self._measure_sum = [0.0, 0.0, 0.0]
+            self.status_changed.emit(
+                f"Measurement count updated to {value}. Restarting measurement."
+            )
+        else:
+            self.status_changed.emit(f"Measurement count set to {value}.")
+
+    def get_measure_target(self) -> int:
+        return int(self._measure_target)
 
     def set_param(self, name: str, value: str) -> None:
         if not hasattr(self._config, name):
@@ -223,9 +249,26 @@ class AppController(QObject):
         if self.state.mode == AppMode.DEBUG:
             self._emit_result(dims)
             return
-        if self._measure_requested:
-            self._measure_requested = False
-            self._emit_result(dims)
+        if self._measure_active:
+            self._measure_sum[0] += dims.length
+            self._measure_sum[1] += dims.width
+            self._measure_sum[2] += dims.height
+            self._measure_count += 1
+            if self._measure_count >= self._measure_target:
+                avg = [
+                    self._measure_sum[0] / self._measure_count,
+                    self._measure_sum[1] / self._measure_count,
+                    self._measure_sum[2] / self._measure_count,
+                ]
+                self._measure_active = False
+                self.result_changed.emit(avg[0], avg[1], avg[2])
+                self.status_changed.emit(
+                    f"Measurement captured (avg of {self._measure_count} frames)."
+                )
+            else:
+                self.status_changed.emit(
+                    f"Measuring... {self._measure_count}/{self._measure_target}"
+                )
 
     def _emit_current_layer(self) -> None:
         if not self._latest_clouds:

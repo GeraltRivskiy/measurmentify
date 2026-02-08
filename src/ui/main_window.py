@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QComboBox,
+    QSpinBox,
 )
 
 from src.ui.app_state import AppMode, SourceMode, ViewLayer
@@ -97,6 +98,10 @@ class MainWindow(QMainWindow):
         self.connect_btn = QPushButton("Connect Camera")
         self.load_btn = QPushButton("Load .npz")
         self.measure_btn = QPushButton("Measure")
+        self.measure_count = QSpinBox()
+        self.measure_count.setRange(1, 100)
+        self.measure_count.setValue(self._controller.get_measure_target())
+        self.measure_count.setSingleStep(1)
 
         layout.addWidget(QLabel("Mode"), 0, 0)
         layout.addWidget(self.mode_combo, 0, 1)
@@ -106,7 +111,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.layer_combo, 2, 1)
         layout.addWidget(self.connect_btn, 3, 0, 1, 2)
         layout.addWidget(self.load_btn, 4, 0, 1, 2)
-        layout.addWidget(self.measure_btn, 5, 0, 1, 2)
+        layout.addWidget(QLabel("Avg frames"), 5, 0)
+        layout.addWidget(self.measure_count, 5, 1)
+        layout.addWidget(self.measure_btn, 6, 0, 1, 2)
 
         return group
 
@@ -118,6 +125,7 @@ class MainWindow(QMainWindow):
         self.connect_btn.clicked.connect(lambda _=False: self._controller.connect_camera())
         self.load_btn.clicked.connect(lambda _=False: self._on_load_clicked())
         self.measure_btn.clicked.connect(lambda _=False: self._controller.measure())
+        self.measure_count.valueChanged.connect(self._controller.set_measure_target)
 
         self.params_panel.param_changed.connect(self._controller.set_param)
         self.params_panel.reset_clicked.connect(self._on_reset_params)
