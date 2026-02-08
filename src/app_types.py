@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Optional, Literal
 import numpy as np
 from numpy.typing import NDArray
-import open3d as o3d
+
 
 @dataclass(frozen=True, slots=True)
 class Intrinsics:
@@ -16,8 +16,8 @@ class Intrinsics:
     height: int
 
 @dataclass(frozen=True, slots=True)
-class PointCloud:
-    points: o3d.utility.Vector3dVector
+class FrameDepth:
+    depth: NDArray[np.uint16]
     intrinsics: Intrinsics
     depth_scale: float
     timestamp_ns: Optional[int] = None

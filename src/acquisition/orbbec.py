@@ -1,26 +1,14 @@
-from src.app_types import PointCloud, Intrinsics
+from src.app_types import FrameDepth, Intrinsics
 import numpy as np
-from pyorbbecsdk import Config, PointCloudFilter, OBFormat, Frame
-from pyorbbecsdk import OBSensorType, OBPropertyID
+from pyorbbecsdk import Config
+from pyorbbecsdk import OBSensorType
 from pyorbbecsdk import Pipeline
-import open3d as o3d
 
-def convert_to_o3d_point_cloud(points, colors=None):
-    """
-    Converts numpy arrays of points and colors (if provided) into an Open3D point cloud object.
-    """
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
-    if colors is not None:
-        pcd.colors = o3d.utility.Vector3dVector(colors / 255.0)  # Assuming colors are in [0, 255]
-    return pcd
 
 class OrbbecSource:
     def __init__(self):
         self.config = Config()
         self.pipeline = Pipeline()
-        device = self.pipeline.get_device()
-        device.set_bool_property(OBPropertyID.OB_PROP_DEPTH_SOFT_FILTER_BOOL, False)
         try:
             profile_list = self.pipeline.get_stream_profile_list(OBSensorType.DEPTH_SENSOR)
             assert profile_list is not None
@@ -33,19 +21,21 @@ class OrbbecSource:
             print(e)
             return
         self.pipeline.start(self.config)
-        self.camera_param = self.pipeline.get_camera_param()
-        # self.point_cloud_filter = PointCloudFilter()
-        # self.point_cloud_filter.set_camera_param(camera_param)
-        # self.point_cloud_filter.set_create_point_format(OBFormat.POINT)
+        
 
     def read(self):
-        frames = self.pipeline.wait_for_frames(10000)
+        frames = self.pipeline.wait_for_frames(500)
         if frames is None:
             raise Exception("Frame was not obtained")
-        
-        points = frames.get_point_cloud(self.camera_param)
-        points_o3d = convert_to_o3d_point_cloud(np.array(points))
-        
+        depth_frame = frames.get_depth_frame()
+        if depth_frame is None:
+            raise Exception("Depth frame was not obtained")
+        width = depth_frame.get_width()
+        height = depth_frame.get_height()
+        scale = depth_frame.get_depth_scale()
+
+        depth_data = np.frombuffer(depth_frame.get_data(), dtype=np.uint16)
+        depth_data = depth_data.reshape((height, width))
         
         intrinsics = Intrinsics(self.depth_intrinsics.fx,
                                 self.depth_intrinsics.fy,
@@ -54,7 +44,7 @@ class OrbbecSource:
                                 self.depth_intrinsics.width,
                                 self.depth_intrinsics.height)
         
-        return PointCloud(points=points_o3d,
+        return FrameDepth(depth = depth_data,
                           intrinsics=intrinsics, depth_scale=1.0)
         
     

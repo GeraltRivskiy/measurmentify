@@ -1,7 +1,8 @@
 import argparse
 
+from src.acquisition.orbbec import OrbbecSource
+from src.acquisition.replay import ReplaySource
 from src.core.pipeline import Pipeline
-from src.config import DimsAlgoConfig
 
 def main():
     parser = argparse.ArgumentParser()
@@ -11,18 +12,16 @@ def main():
     args = parser.parse_args()
 
     if args.replay:
-        from src.acquisition.replay import ReplaySource
-        src = ReplaySource(data_dir=args.data_dir, config_path=args.config, loop=False)
+        src = ReplaySource(data_dir=args.data_dir, config_path=args.config)
     else:
-        from src.acquisition.orbbec import OrbbecSource
         src = OrbbecSource()
-    pipe = Pipeline(DimsAlgoConfig())
+    pipe = Pipeline(dict())
 
     while True:
         frame = src.read()
-        res, _ = pipe.process(frame)
+        res = pipe.process(frame)
 
-        print(f'Length: {res.length}, Width: {res.width}, Height: {res.height}')
+        print(res)
 
 if __name__ == "__main__":
     main()
