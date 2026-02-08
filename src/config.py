@@ -8,9 +8,14 @@ class DimsAlgoConfig:
     std_ratio: float = 2.0
 
     # --- plane (table) ---
-    plane_dist_thresh: float = 7.0   # 4 мм: допуск точек к плоскости
-    ransac_n: int = 3
+    plane_dist_thresh: float = 5.0   # 4 мм: допуск точек к плоскости
+    ransac_n: int = 20
     ransac_iters: int = 1000
+    plane_max_tilt_deg: float = 15.0
+    plane_min_inliers: int = 150
+    plane_min_inlier_ratio: float = 0.03
+    plane_depth_margin: float = 10.0
+    plane_min_closer_ratio: float = 0.02
 
     # --- object extraction relative to table ---
     h_min: float = 5               # выше стола минимум 3 мм (чтобы не цеплять стол)
@@ -24,7 +29,7 @@ class DimsAlgoConfig:
 
     # --- clustering ---
     use_dbscan: bool = True
-    dbscan_eps: float = 15           # 1 см
+    dbscan_eps: float = 25           # 1 см
     dbscan_min_points: int = 30
 
     # --- robust extents ---
