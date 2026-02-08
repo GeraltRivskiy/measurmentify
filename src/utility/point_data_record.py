@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
-from pyorbbecsdk import Config, OBSensorType, Pipeline
+from pyorbbecsdk import Config, OBSensorType, Pipeline, OBPropertyID
 
 
 def _points_to_numpy(points) -> np.ndarray:
@@ -15,9 +15,37 @@ def _points_to_numpy(points) -> np.ndarray:
     return points_np.astype(np.float32, copy=False)
 
 
+def _resolve_output_path(name: str | None) -> Path:
+    out_dir = Path("data")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if name:
+        path = Path(name)
+        if path.suffix.lower() != ".npz":
+            path = path.with_suffix(".npz")
+        if path.parent == Path("."):
+            return out_dir / path
+        return path
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return out_dir / f"point_cloud_{ts}.npz"
+
+
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--name",
+        help="Output filename for .npz (default: timestamped in ./data). "
+        "You can pass a name or a path.",
+    )
+    args = parser.parse_args()
+
     config = Config()
     pipeline = Pipeline()
+
+    device = pipeline.get_device()
+    device.set_bool_property(OBPropertyID.OB_PROP_DEPTH_SOFT_FILTER_BOOL, False)
+
     try:
         profile_list = pipeline.get_stream_profile_list(OBSensorType.DEPTH_SENSOR)
         assert profile_list is not None
@@ -51,10 +79,7 @@ def main():
     points = frames.get_point_cloud(camera_param)
     points_np = _points_to_numpy(points)
 
-    out_dir = Path("data")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    out_path = out_dir / f"point_cloud_{ts}.npz"
+    out_path = _resolve_output_path(args.name)
     np.savez_compressed(
         out_path,
         points=points_np,
@@ -75,3 +100,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
