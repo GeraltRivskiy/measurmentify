@@ -3,8 +3,8 @@ from dataclasses import dataclass
 @dataclass
 class DimsAlgoConfig:
     # --- point cloud preprocessing ---
-    voxel_size: float = 1          # 5 мм
-    nb_neighbors: int = 100
+    voxel_size: float = 3          # 5 мм
+    nb_neighbors: int = 50
     std_ratio: float = 1.25
 
     # --- plane (table) ---
@@ -17,10 +17,10 @@ class DimsAlgoConfig:
     h_max: float = 500                 # максимум 1 м (защита от мусора)
     
     # ROI в координатах стола, если известны габариты рабочего поля
-    roi_x_min: float = -2000
-    roi_x_max: float =  1000
-    roi_y_min: float = -1500
-    roi_y_max: float = 2000
+    roi_x_min: float = -225
+    roi_x_max: float = 350
+    roi_y_min: float = -230
+    roi_y_max: float = 290
 
     # --- clustering ---
     use_dbscan: bool = True

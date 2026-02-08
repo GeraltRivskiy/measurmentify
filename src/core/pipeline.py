@@ -21,6 +21,15 @@ class Pipeline:
             std_ratio=self.cfg.std_ratio
         )
         return pcd
+
+    def _raw_roi_filter(self, points_xyz: np.ndarray) -> np.ndarray:
+        if points_xyz.size == 0:
+            return points_xyz
+        x = points_xyz[:, 0]
+        y = points_xyz[:, 1]
+        keep = (x > self.cfg.roi_x_min) & (x < self.cfg.roi_x_max)
+        keep &= (y > self.cfg.roi_y_min) & (y < self.cfg.roi_y_max)
+        return points_xyz[keep]
     
     def _table_plane_estimation(self, pcd: o3d.geometry.PointCloud) -> tuple[o3d.geometry.PointCloud, o3d.geometry.PointCloud, np.ndarray]:
         plane_model, inliers = pcd.segment_plane(distance_threshold=self.cfg.plane_dist_thresh, 
@@ -84,10 +93,6 @@ class Pipeline:
         z = pts_object[:, 2]
         keep = (z > self.cfg.h_min) & (z < self.cfg.h_max)
 
-        # 2) ROI в плоскости стола
-        x = pts_object[:, 0]
-        y = pts_object[:, 1]
-        keep &= (x > self.cfg.roi_x_min) & (x < self.cfg.roi_x_max) & (y > self.cfg.roi_y_min) & (y < self.cfg.roi_y_max)
         if self.cfg.use_dbscan:
             pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(pts_object))
             labels = np.array(pcd.cluster_dbscan(eps=self.cfg.dbscan_eps,
@@ -144,7 +149,14 @@ class Pipeline:
     def process(self, frame: PointCloud) -> tuple[DimsResult, dict[ViewLayer, np.ndarray]]:
 
         o3d_points = frame.points
-        pcd = self._downsample(o3d_points=o3d_points)
+        if isinstance(o3d_points, o3d.geometry.PointCloud):
+            raw_points = np.asarray(o3d_points.points)
+        else:
+            raw_points = np.asarray(o3d_points)
+
+        raw_points = self._raw_roi_filter(raw_points)
+        raw_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(raw_points))
+        pcd = self._downsample(o3d_points=raw_pcd)
 
         table_pcd, object_pcd, plane_model = self._table_plane_estimation(pcd=pcd)
 
@@ -160,11 +172,6 @@ class Pipeline:
         obj_pts_extracted_cam = (R @ obj_pts_extracted.T).T + p0
 
         l, w, h = self._compute_upright_dims(obj_pts_extracted)
-
-        if isinstance(o3d_points, o3d.geometry.PointCloud):
-            raw_points = np.asarray(o3d_points.points)
-        else:
-            raw_points = np.asarray(o3d_points)
 
         res = DimsResult(length=l, width=w, height=h)
         clouds = {

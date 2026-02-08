@@ -107,4 +107,9 @@ class PointCloudView(QWidget):
             return
         if points is None or len(points) == 0:
             points = np.zeros((1, 3), dtype=np.float32)
-        self._scatter.setData(pos=points)
+        pts = np.asarray(points, dtype=np.float32)
+        if pts.ndim != 2 or pts.shape[1] != 3:
+            return
+        center = pts.mean(axis=0)
+        pts = pts - center
+        self._scatter.setData(pos=pts)
